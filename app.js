@@ -1,0 +1,317 @@
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const  multer  = require("multer");
+const bodyParser = require("body-parser");
+const path = require("path");
+const fs = require('fs');
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ Make uploads folder publicly accessible
+app.use("/uploads", express.static("uploads"));
+
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/resto', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true, 
+})
+.then(() => console.log("Connected to MongoDB.."))
+.catch((err) => console.log(err));
+
+
+// ********ADD the menu data********
+// Get Menu API
+app.get("/menulist", async (req, res) => {
+  const productList = await ProductModal.find();
+  res.json(productList);
+});
+
+
+// ********Team Schema and Model********
+const TeamSchema = new mongoose.Schema({
+  image: String,
+  name: String,
+  designation: String,
+  facebook: String,
+  twitter: String,
+  instagram: String
+});
+
+const TeamModal = mongoose.model('team', TeamSchema);
+
+// Get Team API
+app.get("/team", async (req, res) => {
+  try {
+    console.log("Fetching team members...");
+    const team = await TeamModal.find();
+    res.json(team);
+  } catch (err) {
+    res.status(500).send("Server Error");
+  }
+});
+
+// ********Testimonial Schema and Model********
+const TestimonialSchema = new mongoose.Schema({
+  image: String,
+  quote: String,
+  name: String,
+  profession: String
+});
+
+const TestimonialModal = mongoose.model('testimonial', TestimonialSchema);
+
+// Get Testimonials
+app.get("/testimonial", async (req, res) => {
+  try {
+    console.log("Fetching testimonials...");
+    const testimonial = await TestimonialModal.find();
+    res.json(testimonial);
+  } catch (err) {
+    res.status(500).send("Server Error");
+  }
+});
+
+
+
+//*************************************/ THIS PART IS FOR DASHBOARD*******************************************************
+// ********Product Schema and Model********
+
+const ProductSchema = new mongoose.Schema({
+  image: String,
+  title: String,
+  price: String
+});
+
+const ProductModal = mongoose.model('product', ProductSchema);
+
+//*************** Configure Multer for file uploads ***********
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/"); // folder where images will be saved
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only image files are allowed!"), false);
+  }
+};
+
+const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Upload API with validation
+app.post("/addproduct", upload.single("image"), async (req, res) => {
+  try {
+    const { title, price } = req.body;
+
+    if (!title || !price) {
+      return res.status(400).json({ error: "Title and Price are required" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Image file is required" });
+    }
+
+    const newProduct = new ProductModal({
+      title,
+      price,
+      image: `/uploads/${req.file.filename}`, // ✅ save relative path
+    });
+
+    await newProduct.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Item uploaded successfully",
+      data: {
+        id: newProduct._id,
+        title: newProduct.title,
+        price: newProduct.price,
+        image: newProduct.image
+      }
+    });
+  } catch (err) {
+    console.error("Upload Error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Upload failed"
+    });
+  }
+});
+
+
+
+//*************Delete Product Item***********
+app.delete("/deleteproduct/:_id", function (req, res) {
+  const menuId = req.params._id;
+  console.log("Deleting Menu ID:", menuId);
+
+  ProductModal.findByIdAndDelete(menuId)
+    .then((deletedItem) => {
+      if (deletedItem) {
+        res.status(200).json({ message: "Menu item deleted." });
+      } else {
+        res.status(404).json({ error: "Menu item not found." });
+      }
+    })
+    .catch((err) => {
+      res.status(500).json({ error: "Internal server error." });
+    });
+});
+
+
+// Get single product for update
+// Add these routes to your existing app.js file, after your other routes
+
+//****************/ Get single product for update**********************
+app.get("/update/:_id", async (req, res) => {
+  try {
+    const product = await ProductModal.findById(req.params._id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    res.json({
+      mimage: product.image,
+      mtitle: product.title,
+      mprice: product.price
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// **********************Update product******************************
+app.put("/updatemenu/:_id", upload.single("image"), async (req, res) => {
+  try {
+    const { title, price } = req.body;
+    const updateData = {
+      title: title,
+      price: price
+    };
+
+    // If a new image was uploaded
+    if (req.file) {
+      updateData.image = "/uploads/" + req.file.filename;
+    }
+
+    const updatedProduct = await ProductModal.findByIdAndUpdate(
+      req.params._id,
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ****************************Reservation Schema and Model*************************
+const ReservationSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  date: String,
+  people: String,
+  message: String
+});
+
+const ReservationModal = mongoose.model("reservation", ReservationSchema);
+
+// ADD Reservation API
+app.post("/reservation", async (req, res) => {
+  try {
+    const { name, email, date, people, message } = req.body;
+
+    if (!name || !email || !date || !people) {
+      return res
+        .status(400)
+        .json({ error: "Name, Email, Date, and People are required" });
+    }
+
+    const newReservation = new ReservationModal({
+      name,
+      email,
+      date,
+      people,
+      message
+    });
+
+    await newReservation.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Reservation made successfully",
+      data: {
+        id: newReservation._id,
+        name: newReservation.name,
+        email: newReservation.email,
+        date: newReservation.date,
+        people: newReservation.people,
+        message: newReservation.message
+      }
+    });
+  } catch (err) {
+    console.error("Reservation Error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Reservation failed" });
+  }
+});
+
+// ✅ Reservation list (GET)
+app.get("/bookinglist", async (req, res) => {
+  try {
+    const bookingList = await ReservationModal.find();
+    res.json(bookingList);
+  } catch (err) {
+    console.error("Error fetching reservations:", err);
+    res.status(500).json({ error: "Failed to fetch reservations" });
+  }
+});
+
+//*************Delete Reservation Item***********
+app.delete("/deletebooking/:_id", function (req, res) {
+  const bookingId = req.params._id;
+  console.log("Deleting Booking ID:", bookingId);
+  ReservationModal.findByIdAndDelete(bookingId)
+    .then((deletedItem) => {
+      if (deletedItem) {
+        res.status(200).json({ message: "Booking item deleted." });
+      } else {
+        res.status(404).json({ error: "booking item not found." });
+      }
+    })
+    .catch((err) => {
+      res.status(500).json({ error: "Internal server error." });
+    });
+});
+
+
+
+// Error handling for Multer
+app.listen(3000, () => console.log('Server running on port 3000'));
+
+
