@@ -7,6 +7,7 @@ const path = require("path");
 const fs = require('fs');
 
 const app = express();
+const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -87,7 +88,10 @@ app.get("/testimonial", async (req, res) => {
 const ProductSchema = new mongoose.Schema({
   image: String,
   title: String,
-  price: String
+  price: Number,
+  // ingredients: String,
+  // time: String,
+  // type: String
 });
 
 const ProductModal = mongoose.model('product', ProductSchema);
@@ -181,7 +185,7 @@ app.delete("/deleteproduct/:_id", function (req, res) {
 // Get single product for update
 // Add these routes to your existing app.js file, after your other routes
 
-//****************/ Get single product for update**********************
+//****************/ To Get single product for update**********************
 app.get("/update/:_id", async (req, res) => {
   try {
     const product = await ProductModal.findById(req.params._id);
@@ -309,9 +313,135 @@ app.delete("/deletebooking/:_id", function (req, res) {
     });
 });
 
+// ****************************Order Schema and Model*************************
+const OrderSchema = new mongoose.Schema({
+  tableNumber: {
+    type: String,
+    required: true
+  },
+  customerName: {
+    type: String,
+    required: true
+  },
+  specialRequests: {
+    type: String,
+    default: ""
+  },
+  items: [{
+    _id: String,
+    title: String,
+    price: Number,
+    quantity: Number
+  }],
+  totalPrice: {
+    type: Number,
+    required: true
+  },
+  orderDate: {
+    type: Date,
+    default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'preparing', 'ready', 'completed'],
+    default: 'pending'
+  }
+});
+
+const OrderModal = mongoose.model("order", OrderSchema);
+
+// ADD Order API
+app.post("/placeorder", async (req, res) => {
+  try {
+    const { tableNumber, customerName, specialRequests, items, totalPrice } = req.body;
+
+    if (!tableNumber || !customerName || !items || items.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Table number, customer name, and items are required" });
+    }
+
+    const newOrder = new OrderModal({
+      tableNumber,
+      customerName,
+      specialRequests: specialRequests || "",
+      items,
+      totalPrice
+    });
+
+    await newOrder.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully",
+      data: {
+        id: newOrder._id,
+        tableNumber: newOrder.tableNumber,
+        customerName: newOrder.customerName,
+        specialRequests: newOrder.specialRequests,
+        items: newOrder.items,
+        totalPrice: newOrder.totalPrice,
+        orderDate: newOrder.orderDate,
+        status: newOrder.status
+      }
+    });
+  } catch (err) {
+    console.error("Order Error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Order placement failed" });
+  }
+});
+
+// Get Orders List API for Dashboard
+app.get("/orders", async (req, res) => {
+  try {
+    const orders = await OrderModal.find().sort({ orderDate: -1 });
+    res.json(orders);
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+    res.status(500).json({ error: "Failed to fetch orders" });
+  }
+});
+
+// Update Order Status API
+app.put("/updateorder/:_id", async (req, res) => {
+  try {
+    const { status } = req.body;
+    const updatedOrder = await OrderModal.findByIdAndUpdate(
+      req.params._id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json(updatedOrder);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Order API
+app.delete("/deleteorder/:_id", async (req, res) => {
+  try {
+    const deletedOrder = await OrderModal.findByIdAndDelete(req.params._id);
+
+    if (!deletedOrder) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.status(200).json({ message: "Order deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 
 // Error handling for Multer
-app.listen(3000, () => console.log('Server running on port 3000'));
+app.listen(5000, () => console.log('Server running on port 5000'));
 
 
