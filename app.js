@@ -61,10 +61,11 @@ app.get("/team", async (req, res) => {
 
 // ********Testimonial Schema and Model********
 const TestimonialSchema = new mongoose.Schema({
-  image: String,
-  quote: String,
-  name: String,
-  profession: String
+  image: { type: String, default: "testimonial-1.jpg" }, // Default image
+  quote: { type: String, required: true },
+  name: { type: String, required: true },
+  profession: { type: String, default: "Customer" },
+  createdAt: { type: Date, default: Date.now }
 });
 
 const TestimonialModal = mongoose.model('testimonial', TestimonialSchema);
@@ -72,11 +73,40 @@ const TestimonialModal = mongoose.model('testimonial', TestimonialSchema);
 // Get Testimonials
 app.get("/testimonial", async (req, res) => {
   try {
-    console.log("Fetching testimonials...");
-    const testimonial = await TestimonialModal.find();
+    const testimonial = await TestimonialModal.find().sort({ createdAt: -1 });
     res.json(testimonial);
   } catch (err) {
     res.status(500).send("Server Error");
+  }
+});
+
+// Post Testimonial (Review)
+app.post("/testimonial", async (req, res) => {
+  try {
+    const { name, profession, quote, image } = req.body;
+    if (!name || !quote) {
+      return res.status(400).json({ error: "Name and Quote are required" });
+    }
+    const newTestimonial = new TestimonialModal({
+      name,
+      profession: profession || "Customer",
+      quote,
+      image: image || "testimonial-1.jpg"
+    });
+    await newTestimonial.save();
+    res.status(201).json(newTestimonial);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to save review" });
+  }
+});
+
+// Delete Testimonial
+app.delete("/testimonial/:id", async (req, res) => {
+  try {
+    await TestimonialModal.findByIdAndDelete(req.params.id);
+    res.json({ message: "Review deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete review" });
   }
 });
 
@@ -458,6 +488,59 @@ const NewsletterSchema = new mongoose.Schema({
 });
 
 const NewsletterModal = mongoose.model('newsletter', NewsletterSchema);
+
+// ********Settings Schema and Model********
+const SettingsSchema = new mongoose.Schema({
+  location: String,
+  phone: String,
+  operatingHours: String,
+  salesTax: String,
+  taxId: String,
+  stripeKey: String,
+  paypalId: String,
+  kitchenPrinter: String,
+  receiptPrinter: String
+});
+
+const SettingsModal = mongoose.model('settings', SettingsSchema);
+
+// Get Settings API
+app.get("/settings", async (req, res) => {
+  try {
+    let settings = await SettingsModal.findOne();
+    if (!settings) {
+      // Return default if none exists
+      settings = {
+        location: "123 Main St, Anytown, CA 90210",
+        phone: "(555) 123-4567",
+        operatingHours: "Mon-Fri: 9am - 5pm, Sat: 10am - 2pm",
+        salesTax: "8.25",
+        taxId: "TX-123456789",
+        stripeKey: "sk_test_...",
+        paypalId: "client_id_...",
+        kitchenPrinter: "192.168.1.101",
+        receiptPrinter: "192.168.1.102"
+      };
+    }
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
+// Update Settings API
+app.post("/settings", async (req, res) => {
+  try {
+    const updatedSettings = await SettingsModal.findOneAndUpdate(
+      {},
+      req.body,
+      { upsert: true, new: true }
+    );
+    res.json(updatedSettings);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update settings" });
+  }
+});
 
 // Get Newsletters
 
