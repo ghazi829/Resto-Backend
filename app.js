@@ -89,9 +89,9 @@ const ProductSchema = new mongoose.Schema({
   image: String,
   title: String,
   price: Number,
-  // ingredients: String,
-  // time: String,
-  // type: String
+  ingredients: String,
+  time: String,
+  type: String
 });
 
 const ProductModal = mongoose.model('product', ProductSchema);
@@ -124,7 +124,7 @@ const upload = multer({
 // Upload API with validation
 app.post("/addproduct", upload.single("image"), async (req, res) => {
   try {
-    const { title, price } = req.body;
+    const { title, price, ingredients, time, type } = req.body;
 
     if (!title || !price) {
       return res.status(400).json({ error: "Title and Price are required" });
@@ -137,6 +137,9 @@ app.post("/addproduct", upload.single("image"), async (req, res) => {
     const newProduct = new ProductModal({
       title,
       price,
+      ingredients,
+      time,
+      type,
       image: `/uploads/${req.file.filename}`, // ✅ save relative path
     });
 
@@ -149,6 +152,9 @@ app.post("/addproduct", upload.single("image"), async (req, res) => {
         id: newProduct._id,
         title: newProduct.title,
         price: newProduct.price,
+        ingredients: newProduct.ingredients,
+        time: newProduct.time,
+        type: newProduct.type,
         image: newProduct.image
       }
     });
@@ -195,7 +201,10 @@ app.get("/update/:_id", async (req, res) => {
     res.json({
       mimage: product.image,
       mtitle: product.title,
-      mprice: product.price
+      mprice: product.price,
+      mingredients: product.ingredients,
+      mtime: product.time,
+      mtype: product.type
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -205,10 +214,13 @@ app.get("/update/:_id", async (req, res) => {
 // **********************Update product******************************
 app.put("/updatemenu/:_id", upload.single("image"), async (req, res) => {
   try {
-    const { title, price } = req.body;
+    const { title, price, ingredients, time, type } = req.body;
     const updateData = {
       title: title,
-      price: price
+      price: price,
+      ingredients: ingredients,
+      time: time,
+      type: type
     };
 
     // If a new image was uploaded
