@@ -1,7 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const  multer  = require("multer");
+const multer = require("multer");
 const bodyParser = require("body-parser");
 const path = require("path");
 const fs = require('fs');
@@ -22,10 +22,10 @@ app.use("/uploads", express.static("uploads"));
 // MongoDB connection
 mongoose.connect('mongodb://localhost:27017/resto', {
   useNewUrlParser: true,
-  useUnifiedTopology: true, 
+  useUnifiedTopology: true,
 })
-.then(() => console.log("Connected to MongoDB.."))
-.catch((err) => console.log(err));
+  .then(() => console.log("Connected to MongoDB.."))
+  .catch((err) => console.log(err));
 
 
 // ********ADD the menu data********
@@ -115,7 +115,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
@@ -440,6 +440,45 @@ app.delete("/deleteorder/:_id", async (req, res) => {
 });
 
 
+// ********Newsletter Schema and Model********
+const NewsletterSchema = new mongoose.Schema({
+  email: String,
+});
+
+const NewsletterModal = mongoose.model('newsletter', NewsletterSchema);
+
+// Get Newsletters
+
+// POST Route (Add Email)
+app.post("/newsletter", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const newEmail = new NewsletterModal({ email });
+    await newEmail.save();
+
+    res.status(201).json({ message: "Saved successfully" });
+
+  } catch (error) {
+    console.error(error);  // <-- IMPORTANT
+    res.status(500).json({ error: "Server Error" });
+  }
+});
+
+
+// GET Route (View All Emails)
+app.get("/newsletter", async (req, res) => {
+  try {
+    const emails = await NewsletterModal.find();
+    res.json(emails);
+  } catch (error) {
+    res.status(500).json({ error: "Server Error" });
+  }
+});
 
 // Error handling for Multer
 app.listen(5000, () => console.log('Server running on port 5000'));
