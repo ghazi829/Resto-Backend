@@ -48,62 +48,8 @@ const TeamSchema = new mongoose.Schema({
 
 const TeamModal = mongoose.model('team', TeamSchema);
 
-// Get Team API
-app.get("/team", async (req, res) => {
-  try {
-    const team = await TeamModal.find();
-    res.json(team);
-  } catch (err) {
-    res.status(500).send("Server Error");
-  }
-});
+// (Moved these Team routes down after multer initialization)
 
-// Post Team API
-app.post("/addteam", upload.single("image"), async (req, res) => {
-  try {
-    const { name, designation, facebook, twitter, instagram } = req.body;
-    if (!name || !designation) {
-      return res.status(400).json({ error: "Name and Designation are required" });
-    }
-    const newMember = new TeamModal({
-      name,
-      designation,
-      facebook,
-      twitter,
-      instagram,
-      image: req.file ? `/uploads/${req.file.filename}` : ""
-    });
-    await newMember.save();
-    res.status(201).json(newMember);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to save team member" });
-  }
-});
-
-// Delete Team API
-app.delete("/deleteteam/:id", async (req, res) => {
-  try {
-    await TeamModal.findByIdAndDelete(req.params.id);
-    res.json({ message: "Member deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to delete member" });
-  }
-});
-
-// Update Team API
-app.put("/updateteam/:id", upload.single("image"), async (req, res) => {
-  try {
-    const { name, designation, facebook, twitter, instagram } = req.body;
-    const updateData = { name, designation, facebook, twitter, instagram };
-    if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
-    }
-    const updatedMember = await TeamModal.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    res.json(updatedMember);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update team member" });
-  }
-});
 
 // ********Testimonial Schema and Model********
 const TestimonialSchema = new mongoose.Schema({
@@ -196,6 +142,65 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
+
+// ********Team CRUD Routes********
+// Get Team API
+app.get("/team", async (req, res) => {
+  try {
+    const team = await TeamModal.find();
+    res.json(team);
+  } catch (err) {
+    res.status(500).send("Server Error");
+  }
+});
+
+// Post Team API
+app.post("/addteam", upload.single("image"), async (req, res) => {
+  try {
+    const { name, designation, facebook, twitter, instagram } = req.body;
+    if (!name || !designation) {
+      return res.status(400).json({ error: "Name and Designation are required" });
+    }
+    const newMember = new TeamModal({
+      name,
+      designation,
+      facebook,
+      twitter,
+      instagram,
+      image: req.file ? `/uploads/${req.file.filename}` : ""
+    });
+    await newMember.save();
+    res.status(201).json(newMember);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to save team member" });
+  }
+});
+
+// Delete Team API
+app.delete("/deleteteam/:id", async (req, res) => {
+  try {
+    await TeamModal.findByIdAndDelete(req.params.id);
+    res.json({ message: "Member deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete member" });
+  }
+});
+
+// Update Team API
+app.put("/updateteam/:id", upload.single("image"), async (req, res) => {
+  try {
+    const { name, designation, facebook, twitter, instagram } = req.body;
+    const updateData = { name, designation, facebook, twitter, instagram };
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+    const updatedMember = await TeamModal.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    res.json(updatedMember);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update team member" });
+  }
+});
+
 
 // Upload API with validation
 app.post("/addproduct", upload.single("image"), async (req, res) => {
