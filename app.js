@@ -626,6 +626,89 @@ app.get("/newsletter", async (req, res) => {
   }
 });
 
+// ********Blog Schema and Model********
+const BlogSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  author: { type: String, required: true },
+  date: { type: Date, default: Date.now },
+  image: String,
+  excerpt: String,
+  content: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const BlogModal = mongoose.model('blog', BlogSchema);
+
+// Get Blogs API
+app.get("/blogs", async (req, res) => {
+  try {
+    const blogs = await BlogModal.find().sort({ date: -1 });
+    res.json(blogs);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch blogs" });
+  }
+});
+
+// Post Blog API
+app.post("/addblog", upload.single("image"), async (req, res) => {
+  try {
+    const { title, author, date, excerpt, content } = req.body;
+    if (!title || !author) {
+      return res.status(400).json({ error: "Title and Author are required" });
+    }
+    const newBlog = new BlogModal({
+      title,
+      author,
+      date: date || Date.now(),
+      excerpt,
+      content,
+      image: req.file ? `/uploads/${req.file.filename}` : ""
+    });
+    await newBlog.save();
+    res.status(201).json(newBlog);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to save blog post" });
+  }
+});
+
+// Delete Blog API
+app.delete("/deleteblog/:id", async (req, res) => {
+  try {
+    await BlogModal.findByIdAndDelete(req.params.id);
+    res.json({ message: "Blog post deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete blog post" });
+  }
+});
+
+// Update Blog API
+app.put("/updateblog/:id", upload.single("image"), async (req, res) => {
+  try {
+    const { title, author, date, excerpt, content } = req.body;
+    const updateData = { title, author, date, excerpt, content };
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+    const updatedBlog = await BlogModal.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    res.json(updatedBlog);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update blog post" });
+  }
+});
+
+// GET Single Blog API
+app.get("/blog/:id", async (req, res) => {
+  try {
+    const blog = await BlogModal.findById(req.params.id);
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+    res.json(blog);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch blog post" });
+  }
+});
+
 // Error handling for Multer
 app.listen(5000, () => console.log('Server running on port 5000'));
 
