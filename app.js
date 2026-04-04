@@ -5,6 +5,7 @@ const multer = require("multer");
 const bodyParser = require("body-parser");
 const path = require("path");
 const fs = require('fs');
+require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -20,7 +21,8 @@ app.use("/uploads", express.static("uploads"));
 
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/resto', {
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/resto';
+mongoose.connect(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
