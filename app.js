@@ -626,6 +626,19 @@ app.get("/newsletter", async (req, res) => {
   }
 });
 
+// DELETE Route (Remove Email)
+app.delete("/newsletter/:id", async (req, res) => {
+  try {
+    const deletedEmail = await NewsletterModal.findByIdAndDelete(req.params.id);
+    if (!deletedEmail) {
+      return res.status(404).json({ error: "Newsletter subscription not found" });
+    }
+    res.json({ message: "Subscription removed successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Server Error" });
+  }
+});
+
 // ********Blog Schema and Model********
 const BlogSchema = new mongoose.Schema({
   title: { type: String, required: true },
